@@ -149,6 +149,38 @@ backend/
 3. Ensure the `storage/` directory is writable.
 4. Update `CLIENT_URL` so generated share links point to the deployed frontend.
 
+## Suggested Deployment
+
+### Frontend on Netlify
+
+This repo now includes [netlify.toml](/C:/Uderstanding_mern/netlify.toml) and [frontend/public/_redirects](/C:/Uderstanding_mern/frontend/public/_redirects) so the React app works as a single-page application on Netlify.
+
+Use these settings in Netlify:
+
+- Repository: `Indumathi02-jami/File_sharing_app`
+- Base directory: `frontend`
+- Build command: `npm run build`
+- Publish directory: `build`
+- Environment variable: `REACT_APP_API_URL=https://<your-backend-domain>`
+
+### Backend on Render
+
+Use these settings in Render for the Express API:
+
+- Service type: Web Service
+- Root directory: `backend`
+- Build command: `npm install`
+- Start command: `npm start`
+- Health check path: `/api/health`
+
+Set these environment variables in Render:
+
+- `MONGO_URI`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN=7d`
+- `CLIENT_URL=https://<your-netlify-site>`
+- `MAX_FILE_SIZE=10485760`
+
 ## Resume Talking Points
 
 - Implemented secure JWT authentication with password hashing and protected API routes.
