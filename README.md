@@ -7,6 +7,7 @@ Full-stack MERN application for secure file uploads, file management, and public
 - Frontend: React, React Router, Axios, React Toastify
 - Backend: Node.js, Express, Multer, JWT, bcryptjs
 - Database: MongoDB, Mongoose
+- and here is the link for live demo https://filen.netlify.app/auth
 
 ## Project Architecture
 
