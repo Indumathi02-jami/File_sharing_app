@@ -1,5 +1,10 @@
 const mongoose = require("mongoose");
 
+const {
+  DEFAULT_SHARE_DOWNLOAD_LIMIT,
+  INTEGRITY_STATUS
+} = require("../constants/shareSecurity");
+
 const fileSchema = new mongoose.Schema(
   {
     name: {
@@ -44,6 +49,41 @@ const fileSchema = new mongoose.Schema(
     sharePassword: {
       type: String,
       default: ""
+    },
+    shareExpiresAt: {
+      type: Date,
+      default: null
+    },
+    shareMaxDownloads: {
+      type: Number,
+      default: DEFAULT_SHARE_DOWNLOAD_LIMIT,
+      min: 1
+    },
+    shareDownloadCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    shareRevoked: {
+      type: Boolean,
+      default: false
+    },
+    shareRevokedAt: {
+      type: Date,
+      default: null
+    },
+    integrityHash: {
+      type: String,
+      default: null
+    },
+    lastIntegrityStatus: {
+      type: String,
+      enum: Object.values(INTEGRITY_STATUS),
+      default: INTEGRITY_STATUS.PENDING
+    },
+    lastIntegrityCheckAt: {
+      type: Date,
+      default: null
     }
   },
   {

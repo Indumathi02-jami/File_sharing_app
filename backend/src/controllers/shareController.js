@@ -1,17 +1,9 @@
 const bcrypt = require("bcryptjs");
 
 const File = require("../models/File");
-
-const buildSharedPayload = (fileDocument) => ({
-  _id: fileDocument._id,
-  name: fileDocument.name,
-  size: fileDocument.size,
-  mimeType: fileDocument.mimeType,
-  category: fileDocument.category,
-  createdAt: fileDocument.createdAt,
-  ownerName: fileDocument.owner?.name || "Unknown",
-  isPasswordProtected: Boolean(fileDocument.sharePassword)
-});
+const { persistIntegrityResult, verifyFileIntegrity } = require("../services/fileIntegrityService");
+const { buildSharedFilePayload } = require("../services/filePresentationService");
+const { assertShareIsActive } = require("../services/shareSecurityService");
 
 const accessSharedFile = async (req, res, next) => {
   try {
@@ -25,6 +17,12 @@ const accessSharedFile = async (req, res, next) => {
       return res.status(404).json({ message: "This share link is not available." });
     }
 
+    const shareStateError = assertShareIsActive(file);
+
+    if (shareStateError) {
+      return res.status(shareStateError.statusCode).json({ message: shareStateError.message });
+    }
+
     const isPasswordValid = file.sharePassword ? await bcrypt.compare(password || "", file.sharePassword) : true;
 
     if (!isPasswordValid) {
@@ -32,7 +30,7 @@ const accessSharedFile = async (req, res, next) => {
     }
 
     res.json({
-      file: buildSharedPayload(file),
+      file: buildSharedFilePayload(file),
       downloadUrl: `/api/share/${file.shareToken}/download`
     });
   } catch (error) {
@@ -52,13 +50,42 @@ const downloadSharedFile = async (req, res, next) => {
       return res.status(404).json({ message: "This share link is not available." });
     }
 
+    const shareStateError = assertShareIsActive(file);
+
+    if (shareStateError) {
+      return res.status(shareStateError.statusCode).json({ message: shareStateError.message });
+    }
+
     const isPasswordValid = file.sharePassword ? await bcrypt.compare(password, file.sharePassword) : true;
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Incorrect share password." });
     }
 
-    return res.download(file.path, file.name);
+    const integrityResult = await verifyFileIntegrity(file);
+
+    if (!integrityResult.isValid) {
+      await persistIntegrityResult(file, integrityResult);
+      return res.status(409).json({ message: "File integrity verification failed. Download blocked." });
+    }
+
+    await persistIntegrityResult(file, integrityResult);
+
+    return res.download(file.path, file.name, async (downloadError) => {
+      if (downloadError) {
+        if (!res.headersSent) {
+          next(downloadError);
+        }
+
+        return;
+      }
+
+      try {
+        await File.updateOne({ _id: file._id }, { $inc: { shareDownloadCount: 1 } });
+      } catch (updateError) {
+        console.error("Failed to update share download count:", updateError.message);
+      }
+    });
   } catch (error) {
     next(error);
   }

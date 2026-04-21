@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from "framer-motion";
 
 import MotionButton from "./MotionButton";
-import { formatBytes, formatDate } from "../utils/formatters";
+import { formatBytes, formatDate, formatHashPreview } from "../utils/formatters";
 import { listItemMotion, tooltipMotion } from "../utils/animations";
 
 function FileCard({ file, onDelete, onDownload, onRename, onShare }) {
+  const share = file.share || {};
+
   return (
     <motion.article className="file-card interactive-card" {...listItemMotion}>
       <div className="file-card__header">
@@ -13,7 +15,10 @@ function FileCard({ file, onDelete, onDownload, onRename, onShare }) {
           <h3>{file.name}</h3>
           <p className="file-card__subtle">{file.originalName}</p>
         </div>
-        <span className={file.isPublic ? "status status--shared" : "status"}>{file.isPublic ? "Shared" : "Private"}</span>
+        <div className="badge-row">
+          <span className={`status-badge status-badge--${share.status || "disabled"}`}>{share.statusLabel || "Private"}</span>
+          {share.integrityVerified ? <span className="status-badge status-badge--verified">Verified</span> : null}
+        </div>
       </div>
 
       <dl className="file-meta">
@@ -24,6 +29,16 @@ function FileCard({ file, onDelete, onDownload, onRename, onShare }) {
         <div>
           <dt>Uploaded</dt>
           <dd>{formatDate(file.createdAt)}</dd>
+        </div>
+        <div>
+          <dt>Downloads</dt>
+          <dd>
+            {share.downloadCount ?? 0}/{share.downloadLimit ?? 0}
+          </dd>
+        </div>
+        <div>
+          <dt>Hash</dt>
+          <dd>{formatHashPreview(file.integrityHashPreview)}</dd>
         </div>
       </dl>
 

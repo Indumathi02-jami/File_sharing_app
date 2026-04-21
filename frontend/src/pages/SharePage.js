@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 
 import api from "../api/client";
 import MotionButton from "../components/MotionButton";
-import { formatBytes, formatDate } from "../utils/formatters";
+import { formatBytes, formatDate, formatHashPreview } from "../utils/formatters";
 import { pageTransition, shakeMotion } from "../utils/animations";
 import { getErrorMessage } from "../utils/getErrorMessage";
 
@@ -62,10 +62,19 @@ function SharePage() {
 
         {file ? (
           <motion.div className="shared-preview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24 }}>
+            <div className="badge-row">
+              <span className={`status-badge status-badge--${file.share?.status || "disabled"}`}>{file.share?.statusLabel}</span>
+              {file.share?.integrityVerified ? <span className="status-badge status-badge--verified">Verified</span> : null}
+            </div>
             <h2>{file.name}</h2>
             <p>Type: {file.category}</p>
             <p>Size: {formatBytes(file.size)}</p>
             <p>Shared: {formatDate(file.createdAt)}</p>
+            <p>Expires: {file.share?.expiresAt ? formatDate(file.share.expiresAt) : "Not scheduled"}</p>
+            <p>
+              Downloads used: {file.share?.downloadCount} of {file.share?.downloadLimit}
+            </p>
+            <p>SHA-256 preview: {formatHashPreview(file.share?.hashPreview)}</p>
             <motion.a href={downloadUrl} className="download-link" whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
               Download file
             </motion.a>

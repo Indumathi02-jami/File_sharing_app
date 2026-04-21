@@ -15,3 +15,20 @@ export const formatDate = (dateString) =>
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(dateString));
+
+export const formatDateTimeLocalValue = (dateString) => {
+  if (!dateString) {
+    return "";
+  }
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+};
+
+export const formatHashPreview = (hashPreview) => hashPreview || "Not available";

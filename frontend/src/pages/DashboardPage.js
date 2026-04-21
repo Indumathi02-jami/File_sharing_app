@@ -8,6 +8,7 @@ import FileCard from "../components/FileCard";
 import FileUploader from "../components/FileUploader";
 import LoadingSkeleton from "../components/LoadingSkeleton";
 import MotionButton from "../components/MotionButton";
+import ShareSecurityPanel from "../components/ShareSecurityPanel";
 import ShareModal from "../components/ShareModal";
 import { useAuth } from "../context/AuthContext";
 import { pageTransition, staggerContainer } from "../utils/animations";
@@ -22,6 +23,7 @@ function DashboardPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [shareFile, setShareFile] = useState(null);
+  const [securityFile, setSecurityFile] = useState(null);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -43,6 +45,13 @@ function DashboardPage() {
 
       setFiles(response.data.files);
       setPagination(response.data.pagination);
+      setSecurityFile((current) => {
+        if (!current) {
+          return response.data.files[0] || null;
+        }
+
+        return response.data.files.find((file) => file._id === current._id) || current;
+      });
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -78,6 +87,7 @@ function DashboardPage() {
       });
 
       toast.success(response.data.message);
+      setSecurityFile(response.data.file);
       const nextFilters = { ...appliedFilters, page: 1 };
       setAppliedFilters(nextFilters);
       await fetchFiles(nextFilters);
@@ -118,6 +128,8 @@ function DashboardPage() {
     try {
       const response = await api.patch(`/api/files/${shareFile._id}/share`, payload);
 
+      setSecurityFile(response.data.file);
+      setShareFile(response.data.file);
       if (response.data.shareUrl) {
         setShareUrl(response.data.shareUrl);
         setCopied(false);
@@ -132,15 +144,45 @@ function DashboardPage() {
     }
   };
 
+  const handleRefreshSecurityFile = async (fileId) => {
+    try {
+      const response = await api.get(`/api/files/${fileId}/share/status`);
+      setSecurityFile(response.data.file);
+      return response.data.file;
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+      return null;
+    }
+  };
+
   const handleCopyShareUrl = async () => {
-    if (!shareUrl) {
+    const currentShareUrl = securityFile?.share?.url || shareUrl;
+
+    if (!currentShareUrl) {
       return;
     }
 
-    await navigator.clipboard.writeText(shareUrl);
+    await navigator.clipboard.writeText(currentShareUrl);
     setCopied(true);
     toast.success("Share link copied to clipboard.");
     window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  const handleRevokeShare = async () => {
+    if (!securityFile?._id) {
+      return;
+    }
+
+    try {
+      const response = await api.patch(`/api/files/${securityFile._id}/share/revoke`);
+      toast.success(response.data.message);
+      setSecurityFile(response.data.file);
+      setShareFile((current) => (current?._id === response.data.file._id ? response.data.file : current));
+      setShareUrl("");
+      await fetchFiles(appliedFilters);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   const handleDownload = async (file) => {
@@ -206,6 +248,21 @@ function DashboardPage() {
       <section className="dashboard-grid">
         <aside className="dashboard-sidebar">
           <FileUploader onUpload={handleUpload} uploadProgress={uploadProgress} />
+          <ShareSecurityPanel
+            copied={copied}
+            file={securityFile}
+            onConfigure={() => {
+              if (!securityFile) {
+                return;
+              }
+
+              setShareFile(securityFile);
+              setShareUrl(securityFile.share?.url || "");
+              setCopied(false);
+            }}
+            onCopy={handleCopyShareUrl}
+            onRevoke={handleRevokeShare}
+          />
 
           <motion.section className="panel filters-panel filters-panel--premium" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.04 }}>
             <div className="sidebar-section__intro">
@@ -271,9 +328,11 @@ function DashboardPage() {
                     onDownload={handleDownload}
                     onRename={handleRename}
                     onShare={(nextFile) => {
+                      setSecurityFile(nextFile);
                       setShareFile(nextFile);
-                      setShareUrl(nextFile.isPublic && nextFile.shareToken ? `${window.location.origin}/share/${nextFile.shareToken}` : "");
+                      setShareUrl(nextFile.share?.url || "");
                       setCopied(false);
+                      handleRefreshSecurityFile(nextFile._id);
                     }}
                   />
                 ))}
